@@ -20,7 +20,7 @@
 
 (defn run-suite [suite & [{:keys [to-trace do-not-trace syntax-highlight-url]
                            :or {to-trace []
-                                do-not-trace []
+                                do-not-trace #{}
                                 syntax-highlight-url "/shared/syntaxhighlighter/"}}]]
   (with-redefs [tree/runner (-> tree/execute
                                wrap-tracing
@@ -29,7 +29,9 @@
                                tree/wrap-data-driven)]
     (binding [tracer (per-thread-tracer)
               *print-level* 10
-              *print-length* 30 
+              *print-length* 30
+              *print-right-margin* 150
+              *print-miser-width* 120
               *print-pprint-dispatch* log-dispatch
               report/syntax-highlight (report/syntax-highlighter syntax-highlight-url)]
       (dotrace (remove do-not-trace (all-fns to-trace)) 
