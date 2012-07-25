@@ -50,13 +50,17 @@
               *print-miser-width* 120 
               report/syntax-highlight (report/syntax-highlighter syntax-highlight-url)]
       (dotrace (remove do-not-trace (all-fns to-trace)) 
-        (let [reports (tree/run-suite suite)]
+        (let [reports (tree/run-suite suite)
+              show-simple-test (fn [i]
+                                 (if (:steps i)
+                                   (select-keys i [:name :parameters])
+                                   i))]
           (println "----- Blockers -----\n ")
           (let [blockers (->> reports
                             vals
                             (mapcat #(get-in % [:report :blocked-by]))
                             (filter identity)
-                            (map #(select-keys % [:name :parameters]))
+                            (map show-simple-test)
                             frequencies)]
             (pprint blockers)))))))
 
