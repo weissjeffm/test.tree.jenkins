@@ -56,7 +56,9 @@
           (let [blockers (->> reports
                             vals
                             (mapcat #(get-in % [:report :blocked-by]))
-                            (filter #(not (nil? %)))
+                            (filter identity)
+                            (map #(select-keys % [:name :parameters]))
                             frequencies)]
             (pprint blockers)))))))
+
 
