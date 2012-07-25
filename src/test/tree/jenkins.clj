@@ -7,29 +7,28 @@
 
 (def test-traces (ref {}))
 
-(defn mktree
+(defn add-trace
   "Add trace calls and results into a zipper tree structure, so that
    it can be printed out at any time."
-  [vz [i out?]]
+  [trace-zip [entry out?]]
   (if out? 
-    (-> vz (zip/append-child i) zip/up ) 
-    (-> vz (zip/append-child [i]) zip/down zip/rightmost))) 
-
-(defn zip-tracer [_ value & [out?]]
-  (dosync
-   (alter test-traces update-in [test]
-          (fn [z]
-            (mktree (or z (zip/vector-zip []))
-                    [value out?])))))
+    (-> trace-zip (zip/append-child entry) zip/up ) 
+    (-> trace-zip (zip/append-child [entry]) zip/down zip/rightmost))) 
 
 (defn wrap-tracing
   "If the suite is run with tracing on, save the trace in the results."
   [runner]
   (fn [test]
-    (binding [tracer zip-tracer]
+    (binding [tracer (fn [_ value & [out?]]
+                       (dosync
+                        (alter test-traces update-in [test]
+                               (fn [trace-zip]
+                                 (add-trace (or trace-zip (zip/vector-zip []))
+                                            [value out?])))))]
       (let [result (runner test)]
         (if (-> (:result result) (= :fail))
-          (assoc-in  result [:error :trace] (zip/root (@test-traces test)))
+          (assoc-in  result [:error :trace] (if-let [t (@test-traces test)]
+                                              (zip/root t)))
           result)))))
 
 (defn run-suite
