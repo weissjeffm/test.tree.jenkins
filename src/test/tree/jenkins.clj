@@ -1,27 +1,44 @@
 (ns test.tree.jenkins
   (:require [test.tree :as tree]
-            [test.tree.reporter :as report])
+            [test.tree.reporter :as report]
+            [clojure.zip :as zip])
   (:use clojure.pprint
         fn.trace))
 
 (def test-traces (ref {}))
 
-(defn wrap-tracing [runner]
+(defn mktree
+  "Add trace calls and results into a zipper tree structure, so that
+   it can be printed out at any time."
+  [vz [i out?]]
+  (if out? 
+    (-> vz (zip/append-child i) zip/up ) 
+    (-> vz (zip/append-child [i]) zip/down zip/rightmost))) 
+
+(defn zip-tracer [_ value & [out?]]
+  (dosync
+   (alter test-traces update-in [test]
+          (fn [z]
+            (mktree (or z (zip/vector-zip []))
+                    [value out?])))))
+
+(defn wrap-tracing
+  "If the suite is run with tracing on, save the trace in the results."
+  [runner]
   (fn [test]
-    (binding [tracer (fn [_ value & [out?]]
-                       (dosync
-                        (alter test-traces update-in [test]
-                               (fn [v]
-                                 (conj (or v (with-meta [] {:log true})) [value out?])))))]
+    (binding [tracer zip-tracer]
       (let [result (runner test)]
         (if (-> (:result result) (= :fail))
-          (assoc-in  result [:error :trace] (@test-traces test))
+          (assoc-in  result [:error :trace] (zip/root (@test-traces test)))
           result)))))
 
-(defn run-suite [suite & [{:keys [to-trace do-not-trace syntax-highlight-url]
-                           :or {to-trace []
-                                do-not-trace #{}
-                                syntax-highlight-url "/shared/syntaxhighlighter/"}}]]
+(defn run-suite
+  "Run the suite with tracing, and output a testng result file with
+   syntaxhighlighted trace. Also print a report of blockers."
+  [suite & [{:keys [to-trace do-not-trace syntax-highlight-url]
+             :or {to-trace []
+                  do-not-trace #{}
+                  syntax-highlight-url "/shared/syntaxhighlighter/"}}]]
   (with-redefs [tree/runner (-> tree/execute
                                wrap-tracing
                                tree/wrap-blockers
@@ -31,8 +48,7 @@
               *print-level* 10
               *print-length* 30
               *print-right-margin* 150
-              *print-miser-width* 120
-              *print-pprint-dispatch* log-dispatch
+              *print-miser-width* 120 
               report/syntax-highlight (report/syntax-highlighter syntax-highlight-url)]
       (dotrace (remove do-not-trace (all-fns to-trace)) 
         (let [reports (tree/run-suite suite)]
