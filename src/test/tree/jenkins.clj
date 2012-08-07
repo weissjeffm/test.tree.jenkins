@@ -44,8 +44,8 @@
                                tree/wrap-timer
                                tree/wrap-data-driven)]
     (binding [tracer (per-thread-tracer)
-              *print-level* 10
-              *print-length* 30
+              *print-level* 20
+              *print-length* 40
               *print-right-margin* 150
               *print-miser-width* 120 
               report/syntax-highlight (report/syntax-highlighter syntax-highlight-url)]
