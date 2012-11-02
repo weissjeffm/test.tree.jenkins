@@ -23,9 +23,9 @@
                                debug/wrap-tracing
                                tree/wrap-blockers
                                tree/wrap-timer
-                               tree/wrap-data-driven)]
-    (binding [trace/tracer (trace/per-thread-tracer)
-              *print-level* 20
+                               tree/wrap-data-driven)
+                trace/tracer trace/thread-tracer]
+    (binding [*print-level* 20
               *print-length* 40
               *print-right-margin* 150
               *print-miser-width* 120 
