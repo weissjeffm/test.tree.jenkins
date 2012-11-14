@@ -17,20 +17,18 @@
 (defn wrap-tracing
   "If the suite is run with tracing on, save the trace in the results."
   [runner]
-  (fn [test]
-    ; Need to remove :blocked-by key so that traces may be looked up by test map
-    (let [pure-test (dissoc test :blocked-by)]
-      (binding [trace/tracer (fn [_ value & [out?]]
-                         (dosync
-                          (alter test-traces update-in [pure-test]
-                                 (fn [trace-zip]
-                                   (add-trace (or trace-zip (zip/vector-zip []))
-                                              [value out?])))))]
-        (let [result (runner test)]
-          (if (-> (:result result) (= :fail))
-            (assoc-in  result [:error :trace] (if-let [t (@test-traces pure-test)]
-                                                (zip/root t)))
-            result))))))
+  (fn [{:keys [test] :as req}]
+    (binding [trace/tracer (fn [_ value & [out?]]
+                             (dosync
+                              (alter test-traces update-in [test]
+                                     (fn [trace-zip]
+                                       (add-trace (or trace-zip (zip/vector-zip []))
+                                                  [value out?])))))]
+      (let [result (runner req)]
+        (if (-> (:result result) (= :fail))
+          (assoc-in result [:error :trace] (when-let [t (@test-traces test)]
+                                             (zip/root t)))
+          result)))))
 
 (defmacro wrap-swank-conn-maybe
   "Produce a wrap-swank function that does nothing, if swank is not
@@ -43,12 +41,12 @@
   line."
        [~runnersym]
        ~(if (resolve 'swank.core.connection/*current-connection*)
-          `(fn [test#]
+          `(fn [req#]
              (let [conn# swank.core.connection/*current-connection*]
                (binding [swank.core.connection/*current-connection* conn#]
-                 (~runnersym test#))))
+                 (~runnersym req#))))
           `(fn [test#]
-             (~runnersym test#))))))
+             (~runnersym req#))))))
 
 (wrap-swank-conn-maybe)
 
