@@ -45,7 +45,7 @@
              (let [conn# swank.core.connection/*current-connection*]
                (binding [swank.core.connection/*current-connection* conn#]
                  (~runnersym req#))))
-          `(fn [test#]
+          `(fn [req#]
              (~runnersym req#))))))
 
 (wrap-swank-conn-maybe)
