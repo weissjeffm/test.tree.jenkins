@@ -18,17 +18,19 @@
   "If the suite is run with tracing on, save the trace in the results."
   [runner]
   (fn [test]
-    (binding [trace/tracer (fn [_ value & [out?]]
-                       (dosync
-                        (alter test-traces update-in [test]
-                               (fn [trace-zip]
-                                 (add-trace (or trace-zip (zip/vector-zip []))
-                                            [value out?])))))]
-      (let [result (runner test)]
-        (if (-> (:result result) (= :fail))
-          (assoc-in  result [:error :trace] (if-let [t (@test-traces test)]
-                                              (zip/root t)))
-          result)))))
+    ; Need to remove :blocked-by key so that traces may be looked up by test map
+    (let [pure-test (dissoc test :blocked-by)]
+      (binding [trace/tracer (fn [_ value & [out?]]
+                         (dosync
+                          (alter test-traces update-in [pure-test]
+                                 (fn [trace-zip]
+                                   (add-trace (or trace-zip (zip/vector-zip []))
+                                              [value out?])))))]
+        (let [result (runner test)]
+          (if (-> (:result result) (= :fail))
+            (assoc-in  result [:error :trace] (if-let [t (@test-traces pure-test)]
+                                                (zip/root t)))
+            result))))))
 
 (defmacro wrap-swank-conn-maybe
   "Produce a wrap-swank function that does nothing, if swank is not
@@ -53,17 +55,19 @@
 (defn debug
   "Run the given test tree, tracing all the functions in trace-list.
    The trace will be stored along with the rest of the test results.
-  See also test.tree/run"
-  [tree trace-list]
+   Accepts an optional reference for referring to the test results
+   when running asynchronously.
+   See also test.tree/run"
+  [tree trace-list & [results-ref]]
   (with-redefs [test.tree/runner (-> test.tree/execute
                                     wrap-tracing
                                     test.tree/wrap-blockers
                                     test.tree/wrap-timer
                                     test.tree/wrap-data-driven
                                     wrap-swank)]
-    
     (trace/dotrace trace-list
       (let [results (test.tree/run tree)]
+        (when results-ref (reset! results-ref results))
         (doall (->> results second deref vals (map (comp deref :promise))))
         results))))
 
