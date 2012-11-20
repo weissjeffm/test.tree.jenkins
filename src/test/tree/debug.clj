@@ -6,6 +6,15 @@
 
 (def test-traces (ref {}))
 
+(deftype TestTrace [trace-list])
+
+(defmethod clojure.pprint/simple-dispatch TestTrace [o]
+  (println "TestTrace simple-dispatch")
+  (->> o .trace-list tree-trace clojure.pprint/simple-dispatch))
+
+(defmethod print-method TestTrace [o w]
+  (pr (.trace-list o)))
+
 (defn add-trace
   "Add trace calls and results into a zipper tree structure, so that
    it can be printed out at any time."
@@ -14,6 +23,12 @@
     (-> trace-zip (zip/append-child entry) zip/up ) 
     (-> trace-zip (zip/append-child [entry]) zip/down zip/rightmost))) 
 
+(defn tree-trace "Turn a list of traces into a pretty printable tree"
+  [trace-list]
+  (->> trace-list
+       (reduce add-trace (zip/vector-zip []))
+       zip/root))
+
 (defn wrap-tracing
   "If the suite is run with tracing on, save the trace in the results."
   [runner]
@@ -21,14 +36,14 @@
     (binding [trace/tracer (fn [_ value & [out?]]
                              (dosync
                               (alter test-traces update-in [test]
-                                     (fn [trace-zip]
-                                       (add-trace (or trace-zip (zip/vector-zip []))
-                                                  [value out?])))))]
+                                     (fn [trace-list]
+                                       (let [entry (vector value out?)]
+                                         (if trace-list
+                                                 (conj trace-list entry)
+                                                 (vector entry)))))))]
       (let [result (runner req)]
-        (if (-> (:result result) (= :fail))
-          (assoc-in result [:error :trace] (when-let [t (@test-traces test)]
-                                             (zip/root t)))
-          result)))))
+        (assoc-in result [:error :trace]
+                  (TestTrace. (@test-traces test)))))))
 
 (defmacro wrap-swank-conn-maybe
   "Produce a wrap-swank function that does nothing, if swank is not
