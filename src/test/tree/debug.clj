@@ -6,15 +6,6 @@
 
 (def test-traces (ref {}))
 
-(deftype TestTrace [trace-list])
-
-(defmethod clojure.pprint/simple-dispatch TestTrace [o]
-  (println "TestTrace simple-dispatch")
-  (->> o .trace-list tree-trace clojure.pprint/simple-dispatch))
-
-(defmethod print-method TestTrace [o w]
-  (pr (.trace-list o)))
-
 (defn add-trace
   "Add trace calls and results into a zipper tree structure, so that
    it can be printed out at any time."
@@ -28,6 +19,15 @@
   (->> trace-list
        (reduce add-trace (zip/vector-zip []))
        zip/root))
+
+(deftype TestTrace [trace-list])
+
+(defmethod clojure.pprint/simple-dispatch TestTrace [o]
+  (println "TestTrace simple-dispatch")
+  (-> o .trace-list tree-trace clojure.pprint/simple-dispatch))
+
+(defmethod print-method TestTrace [o w]
+  (pr (.trace-list o)))
 
 (defn wrap-tracing
   "If the suite is run with tracing on, save the trace in the results."
