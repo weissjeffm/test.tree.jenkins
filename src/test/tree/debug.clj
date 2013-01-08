@@ -4,8 +4,6 @@
             [fn.trace :as trace]
             [clojure.zip :as zip]))
 
-(def test-traces (ref {}))
-
 (defn add-trace
   "Add trace calls and results into a zipper tree structure, so that
    it can be printed out at any time."
@@ -33,17 +31,12 @@
   "If the suite is run with tracing on, save the trace in the results."
   [runner]
   (fn [{:keys [test] :as req}]
-    (binding [trace/tracer (fn [_ value & [out?]]
-                             (dosync
-                              (alter test-traces update-in [test]
-                                     (fn [trace-list]
-                                       (let [entry (vector value out?)]
-                                         (if trace-list
-                                                 (conj trace-list entry)
-                                                 (vector entry)))))))]
-      (let [result (runner req)]
-        (assoc-in result [:error :trace]
-                  (TestTrace. (@test-traces test)))))))
+    (let [test-trace (atom (vector))]
+      (binding [trace/tracer (fn [_ value & [out?]]
+                               (alter test-trace conj (vector value out?)))]
+        (let [result (runner req)]
+          (assoc-in result [:error :trace]
+                    (TestTrace. @test-trace)))))))
 
 (defmacro wrap-swank-conn-maybe
   "Produce a wrap-swank function that does nothing, if swank is not
@@ -66,19 +59,19 @@
 (wrap-swank-conn-maybe)
 
 (defn debug
-  "Run the given test tree, tracing all the functions in trace-list.
-   The trace will be stored along with the rest of the test results.
-   Accepts an optional reference for referring to the test results
-   when running asynchronously.
-   See also test.tree/run"
-  [tree trace-list & [results-ref]]
+  "Run the given test tree, tracing all the functions given
+   by :trace-list key of tree's metadata. The trace will be stored
+   along with the rest of the test results. Accepts an optional
+   reference for referring to the test results when running
+   asynchronously.  See also test.tree/run"
+  [tree & [results-ref]]
   (with-redefs [test.tree/runner (-> test.tree/execute
                                     wrap-tracing
                                     test.tree/wrap-blockers
                                     test.tree/wrap-timer
                                     test.tree/wrap-data-driven
                                     wrap-swank)]
-    (trace/dotrace trace-list
+    (trace/dotrace (or (-> tree meta :trace-list) '())
       (let [results (test.tree/run tree)]
         (when results-ref (reset! results-ref results))
         (doall (->> results second deref vals (map (comp deref :promise))))
