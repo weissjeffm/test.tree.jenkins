@@ -33,6 +33,6 @@
                      :else []) 
         (let [reports (tree/run-suite suite)]
           (println "----- Blockers -----\n ")
-          (pprint (reporter/blocker-report reports)))))))
+          (pprint (report/blocker-report reports)))))))
 
 
