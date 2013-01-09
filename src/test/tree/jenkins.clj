@@ -6,8 +6,6 @@
             [clojure.pprint :refer :all]
             [fn.trace :as trace]))
 
-
-
 (defn run-suite
   "Run the suite with tracing, and output a testng result file with
    syntaxhighlighted trace. Also print a report of blockers. You can
@@ -33,18 +31,8 @@
       (trace/dotrace (cond to-trace (remove do-not-trace (trace/all-fns to-trace))
                      to-trace-fn (to-trace-fn)
                      :else []) 
-        (let [reports (tree/run-suite suite)
-              show-simple-test (fn [i]
-                                 (if (:steps i)
-                                   (select-keys i [:name :parameters])
-                                   i))]
+        (let [reports (tree/run-suite suite)]
           (println "----- Blockers -----\n ")
-          (let [blockers (->> reports
-                            vals
-                            (mapcat #(get-in % [:report :blocked-by]))
-                            (filter identity)
-                            (map show-simple-test)
-                            frequencies)]
-            (pprint blockers)))))))
+          (pprint (reporter/blocker-report reports)))))))
 
 
