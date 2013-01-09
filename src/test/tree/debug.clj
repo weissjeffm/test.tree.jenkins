@@ -33,10 +33,9 @@
   (fn [{:keys [test] :as req}]
     (let [test-trace (atom (vector))]
       (binding [trace/tracer (fn [_ value & [out?]]
-                               (alter test-trace conj (vector value out?)))]
-        (let [result (runner req)]
-          (assoc-in result [:error :trace]
-                    (TestTrace. @test-trace)))))))
+                               (swap! test-trace conj (vector value out?)))]
+        (assoc-in (runner req) [:error :trace]
+                  (TestTrace. @test-trace))))))
 
 (defmacro wrap-swank-conn-maybe
   "Produce a wrap-swank function that does nothing, if swank is not
