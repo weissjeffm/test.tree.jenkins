@@ -74,7 +74,7 @@
     (trace/dotrace trace-list
       (let [results (test.tree/run tree)]
         (when reports-ref (reset! reports-ref results))
-        (doall (->> results second deref vals (map (comp deref :promise))))
+        (doall (->> results second deref vals (map (comp deref :report))))
         results))))
 
 (defn quick-report
