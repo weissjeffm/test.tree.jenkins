@@ -72,8 +72,8 @@
                                     test.tree/wrap-data-driven
                                     wrap-swank)]
     (trace/dotrace trace-list
-      (let [results (test.tree/run tree)]
-        (when reports-ref (reset! reports-ref results))
+      (let [results (test.tree/run tree opts)]
+        (when reports-ref (dosync (ref-set reports-ref results)))
         (doall (->> results second deref vals (map (comp deref :report))))
         results))))
 
