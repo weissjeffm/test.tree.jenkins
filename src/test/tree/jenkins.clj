@@ -16,7 +16,8 @@
   [suite & [{:keys [to-trace to-trace-fn do-not-trace
                     syntax-highlight-url]
              :or {do-not-trace #{}
-                  syntax-highlight-url "/shared/syntaxhighlighter/"}}]]
+                  syntax-highlight-url "/shared/syntaxhighlighter/"}
+             :as opts}]]
   (with-redefs [tree/runner (-> tree/execute
                                debug/wrap-tracing
                                tree/wrap-blockers
@@ -31,7 +32,7 @@
       (trace/dotrace (cond to-trace (remove do-not-trace (trace/all-fns to-trace))
                      to-trace-fn (to-trace-fn)
                      :else []) 
-        (let [reports (tree/run-suite suite)]
+        (let [reports (tree/run-suite suite opts)]
           (println "----- Blockers -----\n ")
           (pprint (report/blocker-report reports)))))))
 
