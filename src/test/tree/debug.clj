@@ -62,8 +62,8 @@
    trace-list. The trace will be stored along with the rest of the
    test results. Accepts an optional reference for referring to the
    test results when running asynchronously.  See also test.tree/run"
-  [tree & [{:keys [trace-list reports-ref]
-            :or {trace-list (list)}
+  [tree & [{:keys [trace-depth-map reports-ref]
+            :or {trace-depth-map {}}
             :as opts}]]
   (with-redefs [test.tree/runner (-> test.tree/execute
                                     wrap-tracing
@@ -71,7 +71,7 @@
                                     test.tree/wrap-timer
                                     test.tree/wrap-data-driven
                                     wrap-swank)]
-    (trace/dotrace trace-list
+    (trace/dotrace-depth trace-depth-map
       (let [results (test.tree/run tree opts)]
         (when reports-ref (dosync (ref-set reports-ref results)))
         (doall (->> results second deref vals (map (comp deref :lock))))
