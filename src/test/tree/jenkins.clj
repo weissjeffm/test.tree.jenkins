@@ -55,10 +55,10 @@
               *print-right-margin* 150
               *print-miser-width* 120
               report/syntax-highlight (report/syntax-highlighter syntax-highlight-url)]
-      (trace/dotrace-depth (cond to-trace (->> to-trace
-                                               trace/all-fns
-                                               (remove do-not-trace)
-                                               (zipmap (repeat nil)))
+      (trace/dotrace-depth (cond to-trace (zipmap (->> to-trace
+                                                       trace/all-fns
+                                                       (remove do-not-trace))
+                                                  (repeat nil))
                                  trace-depths-fn (trace-depths-fn)
                                  :else [])
                            (let [reports (tree/run-suite suite opts)]
