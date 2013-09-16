@@ -13,13 +13,18 @@
   (fn [{:keys [test] :as req}]
     (if (:headless test)
       (runner req) 
-      (binding [browser/*driver* (rs/new-remote-driver selenium-server
+      (let [[driver error] (try [(rs/new-remote-driver selenium-server
                                                        {:capabilities (capabilities-chooser-fn test)})
-                browser/*finder-fn* finder-fn]
-        (let [res (-> req
-                      (assoc :webdriver browser/*driver*)
-                      runner)]
-          (try (browser/quit)
-               res
-               (catch Exception e
-                 (assoc res :webdriver-error ))))))))
+                                 nil]
+                                (catch Exception e [nil e]))]
+        (if error
+          (assoc (runner req) :webdriver-error error)
+          (binding [browser/*driver* driver               
+                    browser/*finder-fn* finder-fn]
+            (let [res (-> req
+                          (assoc :webdriver driver)
+                          runner)]
+              (try (browser/quit)
+                   res
+                   (catch Exception e
+                     (assoc res :webdriver-error e))))))))))
